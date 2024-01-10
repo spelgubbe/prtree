@@ -8,7 +8,23 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * A Priority R-Tree, a spatial index, for N dimensions. This tree only supports bulk loading.
+ * This class is a dynamic data structure that may be a PR-tree (if {@link #load} or similar constructed the tree).
+ * It may also be modified using the insert, delete and update methods.
+ * <p>
+ * The primary use case for this class is to perform fast spatial queries, more specifically rectangle-rectangle
+ * intersection queries and point-rectangle intersection queries. A PRTree built using {@link #load} is guaranteed
+ * to have optimal query time for rectangle-rectangle intersection queries. The nearest-neighbor queries are probably
+ * optimal too.
+ * <p>
+ * This tree may be modified using the insert, delete and update methods, but there is no guarantee that queries
+ * are optimal after modifications (it may, however, be likely).
+ * <p>
+ * This tree is thread-safe by default, meaning you may insert, delete and update from any thread at any time,
+ * while performing queries like {@link #nearestNeighbour} or {@link #find}. Thread-safety may be turned off by calling
+ * {@link #setConcurrencyPolicy}. Thread-safety is implemented with a {@link ReentrantReadWriteLock}. This allows
+ * multiple threads to perform queries simultaneously but only allows one thread at a time to make modifications
+ * (modifications being {@link #insert}, {@link #delete} or {@link #update} calls).
+ *
  * @param <T> the data type stored in the PRTree
  */
 public class PRTree<T> {
