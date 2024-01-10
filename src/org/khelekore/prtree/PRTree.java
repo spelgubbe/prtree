@@ -28,8 +28,8 @@ public class PRTree<T> {
     private int height;
 
     // public data for debugging
-    public int numRootSplitsCausedByLastOperation = 0;
-    public int numRootShrinksCausedByLastOperation = 0;
+    private int numRootSplitsCausedByLastOperation = 0;
+    private int numRootShrinksCausedByLastOperation = 0;
 
     private TreeUpdater<T> updater;
 
@@ -70,7 +70,6 @@ public class PRTree<T> {
     public PRTree (MBRConverter<T> converter, int branchFactor, int minBranchFactor) {
 	this (converter, branchFactor);
 	this.minBranchFactor = minBranchFactor;
-
     }
 
     public PRTree (MBRConverter<T> converter, int branchFactor, int minBranchFactor, UpdatePolicy updatePolicy) {
@@ -87,8 +86,16 @@ public class PRTree<T> {
 	write (() -> concurrencyPolicy = c);
     }
 
-    public void assertAllLeavesAreOnTheSameLevel () {
+    protected void assertAllLeavesAreOnTheSameLevel () {
 	root.calculateHeight ();
+    }
+
+    protected int getNumRootSplitsCausedByLastOperation () {
+	return numRootSplitsCausedByLastOperation;
+    }
+
+    protected int getNumRootShrinksCausedByLastOperation () {
+	return numRootShrinksCausedByLastOperation;
     }
 
     /**
@@ -97,9 +104,8 @@ public class PRTree<T> {
      * Create the leaf nodes that each hold (up to) branchFactor data entries. Then use the leaf nodes as data until we
      * can fit all nodes into the root node.
      * @param data the collection of data to store in the tree.
-     * @throws IllegalStateException if the tree is already loaded
      */
-    public void load (Collection<? extends T> data) {
+    public void loadOriginal (Collection<? extends T> data) {
 	numLeafs = data.size ();
 	LeafBuilder lb = new LeafBuilder (converter.getDimensions (), branchFactor);
 
@@ -118,7 +124,7 @@ public class PRTree<T> {
 	setRoot (nodes);
     }
 
-    public void loadParallel (Collection<? extends T> data) {
+    private void loadParallel2 (Collection<? extends T> data) {
 	numLeafs = data.size ();
 	NodeComparators<T> dataComp = new DataComparators<> (converter);
 	NodeComparators<Node<T>> internalComp = new InternalNodeComparators<> (converter);
@@ -193,7 +199,7 @@ public class PRTree<T> {
 	setRoot (nodes);
     }
 
-    public void loadSerial (Collection<? extends T> data) {
+    private void loadSerial (Collection<? extends T> data) {
 	numLeafs = data.size ();
 	int dims = converter.getDimensions ();
 	NodeComparators<T> dataComp = new DataComparators<> (converter);
@@ -219,24 +225,14 @@ public class PRTree<T> {
 	setRoot (nodes);
     }
 
-    public void loadSerial2 (Collection<? extends T> data) {
-	int dims = converter.getDimensions ();
-	NodeComparators<T> dataComp = new DataComparators<> (converter);
-	NodeComparators<Node<T>> internalComp = new InternalNodeComparators<> (converter);
-	PseudoPRTreeBuilder<T, LeafNode<T>> leafBuilder = new PseudoPRTreeBuilder<> (dataComp, branchFactor, dims);
-	PseudoPRTreeBuilder<Node<T>, InternalNode<T>> internalBuilder = new PseudoPRTreeBuilder<> (internalComp,
-												   branchFactor, dims);
-
-	BiConsumer<Collection<? extends T>, List<LeafNode<T>>> leafFunc = (in, out) -> leafBuilder.pprListBuild (in,
-														 LeafNode::new,
-														 out);
-	BiConsumer<List<? extends Node<T>>, List<InternalNode<T>>> nodeFunc = (in, out) -> internalBuilder.pprListBuild (
-		in, InternalNode::new, out);
-
-	buildPRTree (data, leafFunc, nodeFunc);
-    }
-
-    public void loadPrimitive (Collection<? extends T> data) {
+    /**
+     * Bulk load data into this tree.
+     *
+     * Create the leaf nodes that each hold (up to) branchFactor data entries. Then use the leaf nodes as data until we
+     * can fit all nodes into the root node.
+     * @param data the collection of data to store in the tree.
+     */
+    public void load (Collection<? extends T> data) {
 	numLeafs = data.size ();
 
 	MBRValueExtractor<T> dataExtractor = new DataExtractor<> (converter);
@@ -264,7 +260,10 @@ public class PRTree<T> {
 	setRoot (nodes);
     }
 
-    public void loadPrimitiveParallel (Collection<? extends T> data) {
+    /**
+     * Bulk load data into this tree in parallel.
+     */
+    public void loadParallel (Collection<? extends T> data) {
 	numLeafs = data.size ();
 
 	MBRValueExtractor<T> dataExtractor = new DataExtractor<> (converter);
@@ -293,59 +292,6 @@ public class PRTree<T> {
 
     private int estimateSize (int dataSize) {
 	return (int) (1.0 / (branchFactor - 1) * dataSize);
-    }
-
-    public int calcHeight () {
-	return root.calculateHeight ();
-    }
-
-    public int calcNumInternalNodes () {
-	return root.internalNodeCount ();
-    }
-
-    public int calcNumLeafNodes () {
-	return root.leafNodeCount ();
-    }
-
-    public int calcNumNodes () {
-	return calcNumLeafNodes () + calcNumInternalNodes ();
-    }
-
-    public double calcSpaceUtilization () {
-	int numNodes = calcNumNodes ();
-	int numDataItems = getNumberOfLeaves ();
-	int numLeafNodes = calcNumLeafNodes ();
-	int maxDataItems = branchFactor * numLeafNodes;
-	// no idea what space utilization means atm but this is a decent measure
-	// space can be wasted too in upper levels but it is diminishing
-	return (double) numDataItems / maxDataItems;
-    }
-
-    public List<MBR> getMBRs () {
-	List<MBR> mbrs = new ArrayList<> ();
-	root.getMBRs (mbrs, converter);
-	return mbrs;
-    }
-
-    public List<MBR> getLeafNodeMBRs () {
-	List<MBR> mbrs = new ArrayList<> ();
-	root.getLeafNodeMBRs (mbrs, converter);
-	return mbrs;
-    }
-
-    public List<MBR> getNodeMBRs () {
-	// get all MBRs except for the data MBRs
-	List<MBR> mbrs = new ArrayList<> ();
-	root.getNodeMBRs (mbrs, converter);
-	return mbrs;
-    }
-
-    public List<MBR> getMBRsIntersecting (MBR mbr) {
-	return getMBRs ().stream ().filter (mbr::intersects).toList ();
-    }
-
-    public List<MBR> getNodeMBRsIntersecting (MBR mbr) {
-	return getNodeMBRs ().stream ().filter (mbr::intersects).toList ();
     }
 
     private <N extends Node<T>> void setRoot (List<N> nodes) {
@@ -405,18 +351,51 @@ public class PRTree<T> {
 	return height;
     }
 
+    /**
+     * Insert an element into the tree.
+     * @param x The element to insert.
+     */
     public void insert (T x) {
 	numRootSplitsCausedByLastOperation = 0;
 	numRootShrinksCausedByLastOperation = 0;
 	write (() -> updater.insert (x));
     }
 
+    // bulk-insert with one acquisition of the lock
+    private void insert (Collection<T> xs) {
+	write (() -> xs.forEach (x -> {
+	    numRootSplitsCausedByLastOperation = 0;
+	    numRootShrinksCausedByLastOperation = 0;
+	    updater.insert (x);
+	}));
+    }
+
+    /**
+     * Delete an element from the tree. Returns true if the element is found and deleted.
+     * @param x The element to delete.
+     * @return True if the element was successfully deleted.
+     */
     public boolean delete (T x) {
 	numRootSplitsCausedByLastOperation = 0;
 	numRootShrinksCausedByLastOperation = 0;
 	return write (() -> updater.delete (x));
     }
 
+    // bulk-delete with one acquisition of the lock
+    private void delete (Collection<T> xs) {
+	write (() -> xs.forEach (x -> {
+	    numRootSplitsCausedByLastOperation = 0;
+	    numRootShrinksCausedByLastOperation = 0;
+	    updater.delete (x);
+	}));
+    }
+
+    /**
+     * Find an element in the tree and replace it with another element.
+     * @param toReplace Element to replace.
+     * @param newValue Element to put in the replaced element's place.
+     * @return True if the element to replace is found and deleted.
+     */
     public boolean update (T toReplace, T newValue) {
 	numRootSplitsCausedByLastOperation = 0;
 	numRootShrinksCausedByLastOperation = 0;
@@ -425,12 +404,6 @@ public class PRTree<T> {
 
     private int getDepthFromNodeHeight (int nodeHeight) {
 	int depth = getHeight () - nodeHeight;
-	assert depth >= 0;
-	return depth;
-    }
-
-    private int getChildDepthFromNodeHeight (int nodeHeight) {
-	int depth = getDepthFromNodeHeight (nodeHeight - 1);
 	assert depth >= 0;
 	return depth;
     }
@@ -452,42 +425,21 @@ public class PRTree<T> {
 	}
     }
 
-    // 2D ChooseLeaf algorithm
 
-    /**
-     * choose a leaf to put some entry in
-     * @param xmin
-     * @param ymin
-     * @param xmax
-     * @param ymax
-     * @return
-     */
-    public Node<T> chooseLeaf (double xmin, double ymin, double xmax, double ymax) {
+    // for testing
+    protected Node<T> chooseLeaf (double xmin, double ymin, double xmax, double ymax) {
 	// SimpleMBR takes min, max, min, max for each dimension
 	MBR insertMBR = new SimpleMBR (xmin, xmax, ymin, ymax);
 	return root.chooseLeaf (insertMBR, converter);
     }
 
-    public Node<T> chooseLeaf (T x) {
+    // for testing
+    protected Node<T> chooseLeaf (T x) {
 	MBR xMBR = root.getMBR (x, converter); // root only used for access to the method ... :|
 	return root.chooseLeaf (xMBR, converter);
     }
 
-    /**
-     * Choose a node in which to place a Node that is to be reinserted, part of condensing the tree.
-     * @param x
-     * @param nodeHeight
-     * @return
-     */
-    public Node<T> chooseNode (Node<T> x, int nodeHeight) {
-	// implementing this a bit slower than necessary, could just stop searching at the right depth
-	List<Node<T>> path = chooseNodePath (x, nodeHeight);
-	int depth = getDepthFromNodeHeight (nodeHeight);
-	assert path.size () == getHeight () - depth;
-	return path.get (path.size () - 1);
-    }
-
-    public List<Node<T>> chooseNodePath (Node<T> x, int nodeHeight) {
+    private List<Node<T>> chooseNodePath (Node<T> x, int nodeHeight) {
 	MBR xMBR = x.getMBR (converter);
 	List<Node<T>> path = new ArrayList<> ();
 	int depth = getDepthFromNodeHeight (nodeHeight); // should test whether off by 1 or not here
@@ -498,7 +450,7 @@ public class PRTree<T> {
 	return path.subList (0, depth);
     }
 
-    public List<Node<T>> chooseLeafPath (T x) {
+    private List<Node<T>> chooseLeafPath (T x) {
 	MBR xMBR = root.getMBR (x, converter); // root only used for access to the method ... :|
 	List<Node<T>> path = new ArrayList<> ();
 	root.chooseLeafPath (xMBR, converter, path);
@@ -506,11 +458,12 @@ public class PRTree<T> {
 	return path;
     }
 
-    public Node<T> findLeaf (T toFind) {
+    // for testing
+    protected Node<T> findLeaf (T toFind) {
 	return root.findLeaf (toFind, converter);
     }
 
-    public List<Node<T>> findLeafPath (T toFind) {
+    private List<Node<T>> findLeafPath (T toFind) {
 	List<Node<T>> path = new ArrayList<> ();
 	Node<T> leaf = root.findLeafPath (toFind, converter, path);
 
@@ -527,7 +480,7 @@ public class PRTree<T> {
 	return path;
     }
 
-    public void read (Runnable r) {
+    private void read (Runnable r) {
 	read (() -> {
 	    r.run ();
 	    return null;
@@ -568,12 +521,22 @@ public class PRTree<T> {
 	}
     }
 
-    public void insertAll (List<T> xs) {
-	write (() -> xs.forEach (this::insert));
+    /**
+     * Insert all elements in the supplied collection.
+     * @param xs Collection of elements.
+     */
+    public void insertAll (Collection<T> xs) {
+	//write (() -> xs.forEach (this::insert));
+	insert (xs);
     }
 
-    public void deleteAll (List<T> xs) {
-	write (() -> xs.forEach (this::delete));
+    /**
+     * Delete all elements in the supplied collection.
+     * @param xs Collection of elements.
+     */
+    public void deleteAll (Collection<T> xs) {
+	//write (() -> xs.forEach (this::delete));
+	delete (xs);
     }
 
     private class RTreeUpdater implements TreeUpdater<T> {
@@ -630,7 +593,7 @@ public class PRTree<T> {
 	    }
 	}
 
-	public void condenseTree (List<Node<T>> path, int minBranchFactor) {
+	private void condenseTree (List<Node<T>> path, int minBranchFactor) {
 
 	    List<Node<T>> nodeList = getNodesForReinsertion (path, minBranchFactor);
 
@@ -648,7 +611,7 @@ public class PRTree<T> {
 	    }
 	}
 
-	public boolean rTreeDelete (T x) {
+	private boolean rTreeDelete (T x) {
 	    List<Node<T>> path = findLeafPath (x);
 	    if (path.size () == 0)
 		return false;
@@ -671,7 +634,7 @@ public class PRTree<T> {
 	    return true;
 	}
 
-	public boolean rTreeUpdate (T toReplace, T newValue) {
+	private boolean rTreeUpdate (T toReplace, T newValue) {
 	    boolean deleteSuccess = rTreeDelete (toReplace);
 	    if (deleteSuccess)
 		rTreeInsert (newValue, true);
@@ -679,7 +642,7 @@ public class PRTree<T> {
 	}
 
 	// Original R-tree insert logic
-	public void rTreeInsert (T x, boolean count) {
+	private void rTreeInsert (T x, boolean count) {
 	    List<Node<T>> path = chooseLeafPath (x);
 	    Node<T> leaf = path.get (path.size () - 1);
 
@@ -706,7 +669,7 @@ public class PRTree<T> {
 	    handleRootSplit ();
 	}
 
-	public Node<T> adjustTree (List<Node<T>> path, int maxBranchFactor) {
+	private Node<T> adjustTree (List<Node<T>> path, int maxBranchFactor) {
 	    Node<T> ret = root;
 
 	    for (int i = path.size () - 1; i > 0; i--) {
@@ -772,12 +735,12 @@ public class PRTree<T> {
 	    }
 	}
 
-	public Node<T> rStarChooseSubtree (T x) {
+	private Node<T> rStarChooseSubtree (T x) {
 	    MBR xMBR = root.getMBR (x, converter);
 	    return root.RStarChooseSubtree (xMBR, converter);
 	}
 
-	public List<Node<T>> rStarChooseSubtreePath (T x) {
+	private List<Node<T>> rStarChooseSubtreePath (T x) {
 	    MBR xMBR = root.getMBR (x, converter);
 	    List<Node<T>> path = new ArrayList<> ();
 	    root.RStarChooseSubtreePath (xMBR, converter, path);
@@ -790,13 +753,13 @@ public class PRTree<T> {
 	}
 
 	// Corresponds to R*-tree ChooseSubtree with a given level
-	public List<Node<T>> rStarChooseSubtreePath (Node<T> x, int nodeHeight) {
+	private List<Node<T>> rStarChooseSubtreePath (Node<T> x, int nodeHeight) {
 	    MBR xMBR = x.getMBR (converter);
 	    List<Node<T>> path = new ArrayList<> ();
 	    int depth = getDepthFromNodeHeight (nodeHeight);
 	    root.RStarChooseSubtreePath (xMBR, converter, path);
 	    Node<T> last = path.get (path.size () - 1);
-	    assertAllChildrenHaveSameClass (last);
+	    //assertAllChildrenHaveSameClass (last);
 	    return path.subList (0, depth);
 	}
 
@@ -812,11 +775,11 @@ public class PRTree<T> {
 	    }
 	}
 
-	public void rStarTreeInsert (T x) {
+	private void rStarTreeInsert (T x) {
 	    rStarTreeInsertDataInternal (x, new HashSet<> (), true);
 	}
 
-	public void rStarTreeReInsert (T x) {
+	private void rStarTreeReInsert (T x) {
 	    rStarTreeInsertDataInternal (x, new HashSet<> (), false);
 	}
 
@@ -871,7 +834,7 @@ public class PRTree<T> {
 
 	}
 
-	public boolean rStarTreeDelete (T x) {
+	private boolean rStarTreeDelete (T x) {
 	    List<Node<T>> path = findLeafPath (x);
 	    assert path.size () == getHeight ();
 	    if (path.size () == 0)
@@ -899,7 +862,7 @@ public class PRTree<T> {
 	    rStarTreeInsertSubtreeInternal (x, h, levelCache);
 	}
 
-	public void reinsert (Node<T> node, int nodeHeight, Set<Integer> levelCache, List<Node<T>> insertionPath) {
+	private void reinsert (Node<T> node, int nodeHeight, Set<Integer> levelCache, List<Node<T>> insertionPath) {
 	    int depth = getDepthFromNodeHeight (nodeHeight);
 	    // add depth to cache so that no more reinsertions on this level can happen
 	    levelCache.add (nodeHeight);
@@ -939,7 +902,7 @@ public class PRTree<T> {
 	}
 
 	// this can probably not even be used with the current structure
-	public <N, X extends NodeBase<N, T>> void reinsertRefactor (X node, int nodeHeight, Set<Integer> levelCache,
+	private <N, X extends NodeBase<N, T>> void reinsertRefactor (X node, int nodeHeight, Set<Integer> levelCache,
 								    List<Node<T>> insertionPath,
 								    BiConsumer<N, Integer> inserter) {
 	    int depth = getDepthFromNodeHeight (nodeHeight);
@@ -959,7 +922,7 @@ public class PRTree<T> {
 	    closeReinsert (toReinsert, nodeHeight, inserter);
 	}
 
-	public <X> void farReinsert (List<X> maxSortedNodeList, int nodeHeight, BiConsumer<X, Integer> inserter) {
+	private <X> void farReinsert (List<X> maxSortedNodeList, int nodeHeight, BiConsumer<X, Integer> inserter) {
 	    // far reinsert means reinserting nodes with largest distance from center first
 	    // in other words go through the input list sequentially
 	    for (X x : maxSortedNodeList) {
@@ -967,7 +930,7 @@ public class PRTree<T> {
 	    }
 	}
 
-	public <X> void closeReinsert (List<X> maxSortedNodeList, int nodeHeight, BiConsumer<X, Integer> inserter) {
+	private <X> void closeReinsert (List<X> maxSortedNodeList, int nodeHeight, BiConsumer<X, Integer> inserter) {
 	    // close reinsert means reinserting nodes with smallest distance from center first
 	    // in other words go through the input list sequentially
 	    for (int i = maxSortedNodeList.size () - 1; i >= 0; i--) {
@@ -990,7 +953,7 @@ public class PRTree<T> {
 
 	// R*-tree algorithm to propagate splits and perform reinsertions if applicable
 	// If no split or reinsertion is needed, then MBRs on the path are simply updated, as intended
-	public Node<T> propagateOverflow (Node<T> x, Set<Integer> levelCache, int level, int xNodeHeight,
+	private Node<T> propagateOverflow (Node<T> x, Set<Integer> levelCache, int level, int xNodeHeight,
 					  List<Node<T>> path) {
 
 	    //System.out.printf("propagateOverflow: tree size is now %d\n", numLeafs);
@@ -1075,7 +1038,7 @@ public class PRTree<T> {
 	    }
 	}
 
-	public void rStarCondenseTree (List<Node<T>> path, int minBranchFactor) {
+	private void rStarCondenseTree (List<Node<T>> path, int minBranchFactor) {
 
 	    List<Node<T>> nodeList = getNodesForReinsertion (path, minBranchFactor);
 	    // nodeList.get(0) is unused, as the root shrinking is handled in its own case
@@ -1105,7 +1068,7 @@ public class PRTree<T> {
     // R*-tree reinsert algorithm
     // node should be in insertionPath, so passing node is unnecessary
     // TODO: move up inserter and make generic
-    public static int reinsertCalls = 0;
+    private int reinsertCalls = 0;
 
     private void propagateMBRChanges (List<Node<T>> path) {
 	for (int i = path.size () - 1; i >= 0; i--) {
@@ -1182,10 +1145,16 @@ public class PRTree<T> {
 	return find (query);
     }
 
-    public Finder findWithDetails (T x) {
+    protected Finder findWithDetails (T x) {
 	return read (() -> new Finder (new SimpleMBR (x, converter), new AcceptAll<> ()));
     }
 
+    /**
+     * Find all objects that intersect the point (x,y).
+     * @param x x-coordinate
+     * @param y y-coordinate
+     * @param resultNodes List to put the found objects in.
+     */
     public void find (double x, double y, List<T> resultNodes) {
 	find (new SimpleMBR (x, x, y, y), resultNodes, new AcceptAll<> ());
     }
@@ -1302,7 +1271,7 @@ public class PRTree<T> {
 	}
     }
 
-    public class Finder implements Iterator<T> {
+    protected class Finder implements Iterator<T> {
 	private final MBR mbr;
 	private final Predicate<T> filter;
 
@@ -1390,10 +1359,23 @@ public class PRTree<T> {
 	return nn.find ();
     }
 
+    /**
+     * Get the nearest neighbour of the given point
+     * @param dc the DistanceCalculator to use.
+     * @param maxHits the maximum number of entries to find.
+     * @param p the point to find the nearest neighbour to.
+     * @return A List of DistanceResult with up to maxHits results. Will return an empty list if this tree is empty.
+     */
     public List<DistanceResult<T>> nearestNeighbour (DistanceCalculator<T> dc, int maxHits, PointND p) {
 	return nearestNeighbour (dc, new AcceptAll<> (), maxHits, p);
     }
 
+    /**
+     * Get the nearest neighbour of the given point
+     * @param dc the DistanceCalculator to use.
+     * @param p the point to find the nearest neighbour to.
+     * @return A List of DistanceResult with up to maxHits results. Will return an empty list if this tree is empty.
+     */
     public List<DistanceResult<T>> nearestNeighbour (DistanceCalculator<T> dc, PointND p) {
 	return nearestNeighbour (dc, new AcceptAll<> (), 1, p);
     }

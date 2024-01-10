@@ -10,15 +10,58 @@ import java.util.function.Predicate;
 
 import static org.junit.Assert.*;
 
+class TestablePRTree<T> extends PRTree<T> {
+
+    public TestablePRTree (MBRConverter<T> converter, int branchFactor) {
+	super (converter, branchFactor);
+    }
+
+    public TestablePRTree (MBRConverter<T> converter, int branchFactor, int minBranchFactor, UpdatePolicy updatePolicy) {
+	super (converter, branchFactor, minBranchFactor, updatePolicy);
+    }
+
+    public TestablePRTree (MBRConverter<T> converter, int branchFactor, int minBranchFactor) {
+	super (converter, branchFactor, minBranchFactor);
+    }
+
+    public Object findLeafO (T toFind) {
+	return super.findLeaf (toFind);
+    }
+
+    public Object chooseLeafO (T toFind) {
+	return super.chooseLeaf (toFind);
+    }
+
+    public Object chooseLeafO (double xmin, double ymin, double xmax, double ymax) {
+	return super.chooseLeaf (xmin, ymin, xmax, ymax);
+    }
+
+    @Override public void assertAllLeavesAreOnTheSameLevel () {
+	super.assertAllLeavesAreOnTheSameLevel ();
+    }
+
+    @Override public Finder findWithDetails (T x) {
+	return super.findWithDetails (x);
+    }
+
+    @Override public int getNumRootSplitsCausedByLastOperation () {
+	return super.getNumRootSplitsCausedByLastOperation ();
+    }
+
+    @Override public int getNumRootShrinksCausedByLastOperation () {
+	return super.getNumRootShrinksCausedByLastOperation ();
+    }
+}
+
 /**
  * Tests for PRTree.
  */
 public class TestPRTree {
     private static final int BRANCH_FACTOR = 30;
     private Rectangle2DConverter converter = new Rectangle2DConverter ();
-    private PRTree<Rectangle2D> tree;
-    private PRTree<Rectangle2D> rstartree;
-    private PRTree<Rectangle2D> rtree;
+    private TestablePRTree<Rectangle2D> tree;
+    private TestablePRTree<Rectangle2D> rstartree;
+    private TestablePRTree<Rectangle2D> rtree;
     private NodeFilter<Rectangle2D> acceptAll = new AcceptAll<> ();
 
     private static final double RANDOM_RANGE = 100000;
@@ -28,9 +71,9 @@ public class TestPRTree {
     @Before
     public void setUp () {
 	//tree = new PRTree<> (converter, BRANCH_FACTOR);
-	tree = new PRTree<> (converter, BRANCH_FACTOR, BRANCH_FACTOR / 2, PRTree.UpdatePolicy.RTree);
-	rstartree = new PRTree<> (converter, BRANCH_FACTOR, BRANCH_FACTOR / 2, PRTree.UpdatePolicy.RStarTree);
-	rtree = new PRTree<> (converter, BRANCH_FACTOR, BRANCH_FACTOR / 2, PRTree.UpdatePolicy.RTree);
+	tree = new TestablePRTree<> (converter, BRANCH_FACTOR, BRANCH_FACTOR / 2, PRTree.UpdatePolicy.RTree);
+	rstartree = new TestablePRTree<> (converter, BRANCH_FACTOR, BRANCH_FACTOR / 2, PRTree.UpdatePolicy.RStarTree);
+	rtree = new TestablePRTree<> (converter, BRANCH_FACTOR, BRANCH_FACTOR / 2, PRTree.UpdatePolicy.RTree);
     }
 
     private class Rectangle2DConverter implements MBRConverter<Rectangle2D> {
@@ -205,7 +248,7 @@ public class TestPRTree {
 
 	Random random = new Random (1234);  // same random every time
 	for (int round = 0; round < numRounds; round++) {
-	    tree = new PRTree<> (converter, 10);
+	    tree = new TestablePRTree<> (converter, 10);
 	    List<Rectangle2D> rects = new ArrayList<> (numRects);
 	    for (int i = 0; i < numRects; i++) {
 		Rectangle2D r = new Rectangle2D.Double (getRandomRectangleSize (random),
@@ -383,7 +426,7 @@ public class TestPRTree {
 	lst.add (toFind);
 	tree.load (lst);
 
-	assertNotNull (tree.findLeaf (toFind));
+	assertNotNull (tree.findLeafO (toFind));
     }
 
     @Test
@@ -394,7 +437,7 @@ public class TestPRTree {
 	lst.add (toFind);
 	tree.load (lst);
 
-	assertNull (tree.findLeaf (toNotFind));
+	assertNull (tree.findLeafO (toNotFind));
     }
 
     @Test
@@ -412,7 +455,7 @@ public class TestPRTree {
 	lst.add (toFind1);
 	tree.load (lst);
 
-	assertNotNull (tree.findLeaf (toFind1));
+	assertNotNull (tree.findLeafO (toFind1));
     }
 
     @Test
@@ -426,7 +469,7 @@ public class TestPRTree {
 
 	tree.load (rectList);
 
-	assertNotNull (tree.findLeaf (toFind));
+	assertNotNull (tree.findLeafO (toFind));
     }
 
     @Test
@@ -441,7 +484,7 @@ public class TestPRTree {
 	for (int i = 0; i < numTrials; i++) {
 	    int rndIndex = random.nextInt (numRects);
 	    Rectangle2D toFind = rectList.get (rndIndex);
-	    assertNotNull (tree.findLeaf (toFind));
+	    assertNotNull (tree.findLeafO (toFind));
 	}
     }
 
@@ -457,7 +500,7 @@ public class TestPRTree {
 
 	tree.load (rectList);
 
-	assertNull (tree.findLeaf (toFind));
+	assertNull (tree.findLeafO (toFind));
     }
 
     @Test
@@ -467,7 +510,7 @@ public class TestPRTree {
 	lst.add (toFind);
 	tree.load (lst);
 	// api for this is cumbersome...
-	assertNotNull (tree.chooseLeaf (1, 1, 2, 2));
+	assertNotNull (tree.chooseLeafO (1, 1, 2, 2));
     }
 
     @Test
@@ -476,7 +519,7 @@ public class TestPRTree {
 	List<Rectangle2D> lst = new ArrayList<> ();
 	lst.add (toFind);
 	tree.load (lst);
-	assertNotNull (tree.chooseLeaf (toFind));
+	assertNotNull (tree.chooseLeafO (toFind));
     }
 
     // Tests for dynamic operations
@@ -489,7 +532,7 @@ public class TestPRTree {
 	// tree is loaded with 0 elements
 	// This was implemented by letting an empty tree be a single leaf node
 	tree.insert (toInsert);
-	assertNotNull (tree.findLeaf (toInsert));
+	assertNotNull (tree.findLeafO (toInsert));
     }
 
     @Test
@@ -505,7 +548,7 @@ public class TestPRTree {
 	    int currentNumEntries = tree.getNumberOfLeaves ();
 	    for (int i = 0; i < currentNumEntries; i++) {
 		Rectangle2D toFind = rectList.get (i);
-		assertNotNull (tree.findLeaf (toFind));
+		assertNotNull (tree.findLeafO (toFind));
 	    }
 	}
     }
@@ -530,7 +573,7 @@ public class TestPRTree {
 	    int prevHeight = tree.getHeight ();
 	    tree.insert (r);
 
-	    int numRootSplits = tree.numRootSplitsCausedByLastOperation;
+	    int numRootSplits = tree.getNumRootSplitsCausedByLastOperation ();
 	    assertEquals (tree.getHeight (), prevHeight + numRootSplits);
 	}
     }
@@ -544,8 +587,7 @@ public class TestPRTree {
 	for (Rectangle2D r : rectList) {
 	    int prevHeight = tree.getHeight ();
 	    tree.delete (r);
-
-	    int heightDiff = tree.numRootSplitsCausedByLastOperation - tree.numRootShrinksCausedByLastOperation;
+	    int heightDiff = tree.getNumRootSplitsCausedByLastOperation () - tree.getNumRootShrinksCausedByLastOperation ();
 	    assertEquals (tree.getHeight (), prevHeight + heightDiff);
 	}
     }
@@ -562,7 +604,7 @@ public class TestPRTree {
 	    int prevHeight = tree.getHeight ();
 	    tree.insert (r);
 
-	    int heightDiff = tree.numRootSplitsCausedByLastOperation;
+	    int heightDiff = tree.getNumRootSplitsCausedByLastOperation ();
 	    assertEquals (tree.getHeight (), prevHeight + heightDiff);
 	}
     }
@@ -581,7 +623,7 @@ public class TestPRTree {
 	    //System.out.println ("Reinsert calls: " + PRTree.reinsertCalls);
 	    for (int i = 0; i < currentNumEntries; i++) {
 		Rectangle2D toFind = rectList.get (i);
-		assertNotNull (tree.findLeaf (toFind));
+		assertNotNull (tree.findLeafO (toFind));
 	    }
 	}
     }
@@ -711,7 +753,7 @@ public class TestPRTree {
 	    assertEquals (tree.getNumberOfLeaves (), leafsBefore - 1);
 	}
 	// assert that deleted data entry is not found in the tree
-	assertNull (tree.findLeaf (rectList.get (0)));
+	assertNull (tree.findLeafO (rectList.get (0)));
     }
 
     @Test
@@ -730,7 +772,7 @@ public class TestPRTree {
 	    // check that all not deleted entries are still reachable
 	    for (int j = i; j < rectList.size (); j++) {
 		Rectangle2D toFind = rectList.get (j);
-		Object res = tree.findLeaf (toFind);
+		Object res = tree.findLeafO (toFind);
 
 		if (res == null) {
 		    System.out.println ("found null at index " + j);
@@ -742,7 +784,7 @@ public class TestPRTree {
 	    tree.delete (r);
 
 	    // assert that deleted object is not reachable
-	    assertNull (tree.findLeaf (r));
+	    assertNull (tree.findLeafO (r));
 	}
     }
 
@@ -755,7 +797,7 @@ public class TestPRTree {
 	tree.load (lst);
 	// tree is loaded with 0 elements
 	tree.insert (toInsert);
-	assertNotNull (tree.findLeaf (toInsert));
+	assertNotNull (tree.findLeafO (toInsert));
     }
 
     @Test
@@ -769,7 +811,7 @@ public class TestPRTree {
 
 	tree.insert (toInsert);
 
-	assertNotNull (tree.findLeaf (toInsert));
+	assertNotNull (tree.findLeafO (toInsert));
     }
 
     private Rectangle2D getRndQuery (double xmin, double ymin, double xmax, double ymax, double area) {
@@ -871,7 +913,7 @@ public class TestPRTree {
 		int rndIndex = r.nextInt (lst.size ());
 		rndSaveList.add (lst.get (rndIndex));
 	    }
-	    System.out.println ("Got " + lst.size () + " results for query q.");
+	    //System.out.println ("Got " + lst.size () + " results for query q.");
 	    lst.clear ();
 	}
 
@@ -888,7 +930,7 @@ public class TestPRTree {
     public void testAdversarialDatasetQueryPerf () {
 	long start = System.nanoTime ();
 	double ycenter = 0;
-	tree = new PRTree<> (converter, 500);
+	tree = new TestablePRTree<> (converter, 500);
 	tree.load (clusterDataset (28000, 113, ycenter));
 	long end = System.nanoTime ();
 
@@ -933,16 +975,11 @@ public class TestPRTree {
 		int rndIndex = r.nextInt (lst.size ());
 		rndSaveList.add (lst.get (rndIndex));
 	    }
-	    System.out.println ("Got " + lst.size () + " results for query q in time: " + times[i]);
+	    //System.out.println ("Got " + lst.size () + " results for query q in time: " + times[i]);
 	    lst.clear ();
 	}
 
 	printQueryTimeStats (times, 15);
-	System.out.println ("Total number of internal nodes: " + tree.calcNumInternalNodes ());
-	System.out.println ("Total number of leaf nodes: " + tree.calcNumLeafNodes ());
-	System.out.println ("Total number of data items: " + tree.getNumberOfLeaves ());
-	System.out.println ("Space utilization of tree: " + tree.calcSpaceUtilization ());
-
     }
 
     @Test
@@ -994,7 +1031,7 @@ public class TestPRTree {
 		int rndIndex = r.nextInt (lst.size ());
 		rndSaveList.add (lst.get (rndIndex));
 	    }
-	    System.out.println ("Got " + lst.size () + " results for query q in time: " + times[i]);
+	    //System.out.println ("Got " + lst.size () + " results for query q in time: " + times[i]);
 	    lst.clear ();
 	}
 
