@@ -25,7 +25,7 @@ public record KdTree (Point2D p, KdTree left, KdTree right) {
     private static KdTree build (List<Point2D> points, int depth) {
 	// base case
 	if (points == null || points.isEmpty ()) {
-	    return new KdTree (null, null, null);
+	    return null;
 	}
 
 	// recursive case
