@@ -259,6 +259,9 @@ class PseudoPRTreeBuilder<T, N> {
 
     public <I, X> List<List<Problem<I, X>>> bfsLevelList (Problem<I, X> input) {
 	int n = input.size (input.input);
+	if (n == 0) {
+	    return new ArrayList<> ();
+	}
 	// need at most ceil of log2(n) levels in the tree
 	// less actually, since 2d*branchFactor rectangles disappear per node
 	// there could be unnecessary levels built, in which case this is just wasteful
@@ -456,9 +459,9 @@ class PseudoPRTreeBuilder<T, N> {
 	    int pIndex = new Random ().nextInt (right - left + 1) + left;
 	    pIndex = partition (A, left, right, pIndex, comp);
 
-	    if (pIndex == k)
-		return A.get (k);
-	    else if (pIndex < k)
+	    if (pIndex == k - 1)
+		return A.get (pIndex);
+	    else if (pIndex < k - 1)
 		return quickSelect (A, pIndex + 1, right, k, comp);
 	    return quickSelect (A, left, pIndex - 1, k, comp);
 	}
@@ -468,13 +471,18 @@ class PseudoPRTreeBuilder<T, N> {
 		return A.getD (left, axis);
 
 	    int pIndex = new Random ().nextInt (right - left + 1) + left;
-	    pIndex = partition (A, left, right, pIndex, axis);
+	    pIndex = partitionHoare (A, left, right, pIndex, axis);
 
-	    if (pIndex == k)
-		return A.getD (k, axis);
-	    else if (pIndex < k)
-		return quickSelect (A, pIndex + 1, right, k, axis);
-	    return quickSelect (A, left, pIndex - 1, k, axis);
+	    if (pIndex == k - 1)
+		return A.getD (pIndex, axis);
+	    else if (pIndex < k - 1) {
+		// don't want left pointer to cross right
+		int newLeft = Math.min (right, pIndex + 1);
+		return quickSelect (A, newLeft, right, k, axis);
+	    }
+	    // don't want right pointer to cross left
+	    int newRight = Math.max (left, pIndex - 1);
+	    return quickSelect (A, left, newRight, k, axis);
 	}
 
 	private double quickSelectReverse (PrimitiveContainer<T> A, int left, int right, int k, final int axis) {
@@ -482,13 +490,18 @@ class PseudoPRTreeBuilder<T, N> {
 		return A.getD (left, axis);
 
 	    int pIndex = new Random ().nextInt (right - left + 1) + left;
-	    pIndex = partitionReverse (A, left, right, pIndex, axis);
+	    pIndex = partitionHoareReverse (A, left, right, pIndex, axis);
 
-	    if (pIndex == k)
-		return A.getD (k, axis);
-	    else if (pIndex < k)
-		return quickSelectReverse (A, pIndex + 1, right, k, axis);
-	    return quickSelectReverse (A, left, pIndex - 1, k, axis);
+	    if (pIndex == k - 1)
+		return A.getD (pIndex, axis);
+	    else if (pIndex < k - 1) {
+		// don't want left pointer to cross right
+		int newLeft = Math.min (right, pIndex + 1);
+		return quickSelectReverse (A, newLeft, right, k, axis);
+	    }
+	    // don't want right pointer to cross left
+	    int newRight = Math.max (left, pIndex - 1);
+	    return quickSelectReverse (A, left, newRight, k, axis);
 	}
 
 	private int partition (List<T> A, int left, int right, int pIndex, Comparator<T> comp) {
@@ -504,6 +517,91 @@ class PseudoPRTreeBuilder<T, N> {
 	    }
 
 	    return pIndex - 1;
+	}
+
+	private int partitionHoare (List<T> A, int start, int end, int pIndex, Comparator<T> comp) {
+	    T pivot = A.get (pIndex);
+	    int lowIndex = start - 1;
+	    int highIndex = end + 1;
+	    while (true) {
+		do {
+		    lowIndex++;
+		} while (comp.compare (A.get (++lowIndex), pivot) < 0);
+
+		do {
+		    highIndex--;
+		} while (comp.compare (A.get (highIndex), pivot) > 0);
+
+		if (lowIndex < highIndex) {
+		    Collections.swap (A, lowIndex, highIndex);
+		} else {
+		    return highIndex;
+		}
+	    }
+	}
+
+	private int partitionHoareReverse (List<T> A, int start, int end, int pIndex, Comparator<T> comp) {
+	    T pivot = A.get (pIndex);
+	    int lowIndex = start - 1;
+	    int highIndex = end + 1;
+	    while (true) {
+		do {
+		    lowIndex++;
+		} while (comp.compare (A.get (++lowIndex), pivot) > 0);
+
+		do {
+		    highIndex--;
+		} while (comp.compare (A.get (highIndex), pivot) < 0);
+
+		if (lowIndex < highIndex) {
+		    Collections.swap (A, lowIndex, highIndex);
+		} else {
+		    return highIndex;
+		}
+	    }
+	}
+
+	public int partitionHoare (PrimitiveContainer<T> A, int start, int end, int pIndex, final int axis) {
+	    int lowIndex = start - 1;
+	    int highIndex = end + 1;
+	    double pivot = A.getD (pIndex, axis);
+	    while (true) {
+		do {
+		    lowIndex++;
+		}
+		while (A.getD (lowIndex, axis) < pivot);
+		do {
+		    highIndex--;
+		}
+		while (A.getD (highIndex, axis) > pivot);
+
+		if (lowIndex < highIndex) {
+		    A.swap (lowIndex, highIndex);
+		} else {
+		    return highIndex;
+		}
+	    }
+	}
+
+	public int partitionHoareReverse (PrimitiveContainer<T> A, int start, int end, int pIndex, final int axis) {
+	    int lowIndex = start - 1;
+	    int highIndex = end + 1;
+	    double pivot = A.getD (pIndex, axis);
+	    while (true) {
+		do {
+		    lowIndex++;
+		} while (A.getD (lowIndex, axis) > pivot);
+		do {
+		    highIndex--;
+		}
+		while (A.getD (highIndex, axis) < pivot);
+
+		if (lowIndex < highIndex) {
+		    A.swap (lowIndex, highIndex);
+		} else {
+		    return highIndex;
+		}
+	    }
 	}
 
 	private int partition (PrimitiveContainer<T> A, int left, int right, int pIndex, final int axis) {

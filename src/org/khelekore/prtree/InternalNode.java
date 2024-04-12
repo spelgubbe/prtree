@@ -326,7 +326,7 @@ class InternalNode<T> extends NodeBase<Node<T>, T> {
 	    double minDist = MinDist.get (mbr, mdc.p);
 	    int t = drs.size ();
 	    // drs is sorted so we can check only the last entry
-	    if (t < maxHits || minDist <= drs.get (t - 1).getDistance ())
+	    if (t < maxHits || minDist <= Math.pow (drs.get (t - 1).getDistance (), 2))
 		queue.add (n);
 	}
     }

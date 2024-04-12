@@ -398,7 +398,13 @@ public class TestPRTree {
 		}
 	    }
 	    dr = nnRes.get (0);
-	    assertEquals ("Got wrong element back", minRect, dr.get ());
+	    if (!minRect.equals (dr.get ())) {
+
+		System.out.println ("Expected distance: " + minDist);
+		System.out.println ("Got distance: " + dr.getDistance ());
+		assertEquals ("Got wrong element back", minRect, dr.get ());
+	    }
+
 	    checkNNSortOrder (nnRes);
 	}
     }
@@ -1111,6 +1117,42 @@ public class TestPRTree {
 	assertEquals (0, tree.getNumberOfLeaves ());
     }
 
+    // PR tree building tests
+    @Test
+    public void testBuildSerialEqualRects () {
+	int[] testSizes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 101,
+			 201, 303, 405, 555, 4333, 8999, 15320, 60000, 300000};
+
+	for (int numRects : testSizes) {
+	    tree = new TestablePRTree<> (converter, 10);
+	    List<Rectangle2D> elements = getNEqualRects (numRects);
+	    tree.load (elements);
+	}
+    }
+    @Test
+    public void testBuildParallelEqualRects () {
+	int[] testSizes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 101,
+			   201, 303, 405, 555, 4333, 8999, 15320, 60000, 300000};
+
+	for (int numRects : testSizes) {
+	    tree = new TestablePRTree<> (converter, 10);
+	    List<Rectangle2D> elements = getNEqualRects (numRects);
+	    tree.loadParallel (elements);
+	}
+    }
+
+    @Test
+    public void testBuildOriginal () {
+	int[] testSizes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 101,
+			   201, 303, 405, 555, 4333, 8999, 15320, 60000, 300000};
+
+	for (int numRects : testSizes) {
+	    tree = new TestablePRTree<> (converter, 10);
+	    List<Rectangle2D> elements = getNEqualRects (numRects);
+	    tree.loadOriginal (elements);
+	}
+    }
+
     private void checkNNSortOrder (List<DistanceResult<Rectangle2D>> nnRes) {
 	DistanceResult<Rectangle2D> dr = nnRes.get (0);
 	for (int i = 1, s = nnRes.size (); i < s; i++) {
@@ -1173,6 +1215,15 @@ public class TestPRTree {
 	Random r = new Random (1000);
 	for (int i = 0; i < n; i++) {
 	    rectList.add (rectInUnitSquare (r, area));
+	}
+	return rectList;
+    }
+
+    private static List<Rectangle2D> getNEqualRects (int n) {
+	// make loads of rects
+	List<Rectangle2D> rectList = new ArrayList<> ();
+	for (int i = 0; i < n; i++) {
+	    rectList.add (new Rectangle2D.Double (0, 0, 1, 1));
 	}
 	return rectList;
     }

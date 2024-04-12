@@ -33,5 +33,9 @@ public class DistanceResult<T> {
     public double getDistance () {
 	return dist;
     }
+
+    public String toString () {
+	return "DistanceResult: distance=" + dist + ", for " + t.toString ();
+    }
 }
 
