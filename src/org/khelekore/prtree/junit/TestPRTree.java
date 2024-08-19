@@ -1142,13 +1142,48 @@ public class TestPRTree {
     }
 
     @Test
-    public void testBuildOriginal () {
+    public void testBuildOriginalEqualRects () {
 	int[] testSizes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 101,
 			   201, 303, 405, 555, 4333, 8999, 15320, 60000, 300000};
 
 	for (int numRects : testSizes) {
 	    tree = new TestablePRTree<> (converter, 10);
 	    List<Rectangle2D> elements = getNEqualRects (numRects);
+	    tree.loadOriginal (elements);
+	}
+    }
+
+    @Test
+    public void testBuildSerialRandomRects () {
+	int[] testSizes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 101,
+			   201, 303, 405, 555, 4333, 8999, 15320, 60000, 300000};
+
+	for (int numRects : testSizes) {
+	    tree = new TestablePRTree<> (converter, 10);
+	    List<Rectangle2D> elements = getNUnitSquareRects (numRects, 1e-4);
+	    tree.load (elements);
+	}
+    }
+    @Test
+    public void testBuildParallelRandomRects () {
+	int[] testSizes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 101,
+			   201, 303, 405, 555, 4333, 8999, 15320, 60000, 300000};
+
+	for (int numRects : testSizes) {
+	    tree = new TestablePRTree<> (converter, 10);
+	    List<Rectangle2D> elements = getNUnitSquareRects (numRects, 1e-4);
+	    tree.loadParallel (elements);
+	}
+    }
+
+    @Test
+    public void testBuildOriginalRandomRects () {
+	int[] testSizes = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 101,
+			   201, 303, 405, 555, 4333, 8999, 15320, 60000, 300000};
+
+	for (int numRects : testSizes) {
+	    tree = new TestablePRTree<> (converter, 10);
+	    List<Rectangle2D> elements = getNUnitSquareRects (numRects, 1e-4);
 	    tree.loadOriginal (elements);
 	}
     }

@@ -526,7 +526,7 @@ class PseudoPRTreeBuilder<T, N> {
 	    while (true) {
 		do {
 		    lowIndex++;
-		} while (comp.compare (A.get (++lowIndex), pivot) < 0);
+		} while (comp.compare (A.get (lowIndex), pivot) < 0);
 
 		do {
 		    highIndex--;
@@ -547,7 +547,7 @@ class PseudoPRTreeBuilder<T, N> {
 	    while (true) {
 		do {
 		    lowIndex++;
-		} while (comp.compare (A.get (++lowIndex), pivot) > 0);
+		} while (comp.compare (A.get (lowIndex), pivot) > 0);
 
 		do {
 		    highIndex--;
