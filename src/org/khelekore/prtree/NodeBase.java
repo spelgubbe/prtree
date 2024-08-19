@@ -28,11 +28,16 @@ abstract class NodeBase<N, T> implements Node<T> {
     private void assertAllChildrenOfSameType () {
 	if (size () > 0) {
 	    Class<?> firstClass = this.data.get (0).getClass ();
-	    for (int j = 0; j < size (); j++) {
-		if (firstClass != get (j).getClass ()) {
-		    System.out.println ("invalid insert height");
+	    if (this.data.get (0) instanceof Node) {
+		for (int j = 0; j < size (); j++) {
+		    Class<?> secondClass = get (j).getClass ();
+		    if (firstClass != secondClass) {
+			System.err.println (
+				"[" + getClass ().getName () + "] Invalid insert height: " + firstClass + " and "
+				+ secondClass + " as children in the same node.");
+		    }
+		    assert firstClass == secondClass;
 		}
-		assert firstClass == get (j).getClass ();
 	    }
 	}
     }
