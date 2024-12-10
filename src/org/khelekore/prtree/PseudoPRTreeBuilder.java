@@ -216,12 +216,18 @@ class PseudoPRTreeBuilder<T, N> {
 	// Spawn pair of problems that are independent of each other
 	public Pair<Problem<I, X>> spawnChildren () {
 	    int size = size (input);
+	    // it takes 2*d*B elements to produce all the priority leaves in one node
+	    // if we don't have more elements than that, there will be no further sub-problems.
 	    if (size > 2 * dims * branchFactor) {
+		// get the expected number of priority leaves, in most cases this is 2*d
 		int numPriorityLeaves = getNumPriorityLeaves (size, branchFactor, dims);
 		int maxRemovedElements = numPriorityLeaves * branchFactor;
 
-		// TODO: is this a bug?? not a bug
-		if (maxRemovedElements < size) {
+		// maxRemovedElements are extracted to build the priority leaves,
+		// if that is equal or greater than the size of this problem,
+		// those elements are consumed and there will be no further problems to solve.
+		// So if this condition is not true, we return an empty problem (null, null)
+		if (size < maxRemovedElements) {
 		    // there is a rest after constructing the 2d priority leaves
 		    int rest = size - maxRemovedElements;
 		    // assume elements are removed from the list
@@ -286,7 +292,7 @@ class PseudoPRTreeBuilder<T, N> {
 	return bfsList;
     }
 
-    public <X> void pprBuildParallel (Problem<X, T> p, List<List<T>> output) {
+    private <X> void pprBuildParallel (Problem<X, T> p, List<List<T>> output) {
 	List<List<Problem<X, T>>> problemsByLevel = bfsLevelList (p);
 
 	for (List<Problem<X, T>> level : problemsByLevel) {
@@ -295,7 +301,7 @@ class PseudoPRTreeBuilder<T, N> {
 	}
     }
 
-    public <X> void pprBuild (Problem<X, T> p, List<List<T>> output) {
+    private <X> void pprBuild (Problem<X, T> p, List<List<T>> output) {
 	if (p == null)
 	    return;
 	Pair<Problem<X, T>> next = p.spawnChildren ();

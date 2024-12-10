@@ -611,12 +611,16 @@ public class PRTree<T> {
 
 	private void condenseTree (List<Node<T>> path, int minBranchFactor) {
 
+	    // This removes the nodes that needs to be reinserted, and puts them in this list
 	    List<Node<T>> nodeList = getNodesForReinsertion (path, minBranchFactor);
+	    // the height of each node is indicated by its index in the list,
+	    // indexes where the node was not too small, are padded with null
 
 	    // nodeList.get(0) is unused, as the root shrinking is handled in its own case
 	    // order by smallest branch to largest (smallest being leafs, largest being children of root)
 	    int oldHeight = getHeight ();
 	    for (int d = nodeList.size () - 1; d > 0; d--) {
+		// d here is depth
 		Node<T> node = nodeList.get (d);
 		if (node != null) {
 		    //int childNodeHeight = getHeight() - (d + 1);
