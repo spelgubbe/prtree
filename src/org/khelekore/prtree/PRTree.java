@@ -725,8 +725,6 @@ public class PRTree<T> {
 	}
 
 	public boolean delete (T x) {
-	    // TODO: fix bug here, this will call R-tree reinsertion routine, is that correct really?
-	    //return PRTree.this.rTreeDelete(x);
 	    return rStarTreeDelete (x);
 	}
 
@@ -1060,34 +1058,33 @@ public class PRTree<T> {
 
 	private void rStarCondenseTree (List<Node<T>> path, int minBranchFactor) {
 
+	    // this extracts nodes from the tree that are too small, and puts them in a list
 	    List<Node<T>> nodeList = getNodesForReinsertion (path, minBranchFactor);
 	    // nodeList.get(0) is unused, as the root shrinking is handled in its own case
 	    // order by smallest branch to largest (smallest being leafs, largest being children of root)
 	    int oldHeight = getHeight ();
 	    for (int d = nodeList.size () - 1; d > 0; d--) {
+		// the nodes we are working on in this loop, are outside the tree pointed to by root.
 		Node<T> node = nodeList.get (d);
 		int subtreeHeight = oldHeight - d;
-		int newHeight = getHeight ();
-		// TODO: bug here: height may differ between iterations here, but depth will not
-		// this will cause nodes to have different height possibly, depending on history
+		// previous bug here: height of this tree may differ between iterations here, but the height
+		// if the nodes to be reinserted, stay the same.
 		// the solution here is to cache the height, use an old height of the tree,
-		// to determine the height of subtrees,
+		// to determine the height of subtrees.
 		// this is counterintuitive
 		int childHeight = subtreeHeight - 1;
 		// we need to calculate the height of nodes here
 		if (node != null) {
-		    // TODO: reformulate this as insertion at specific height, might solve the issues
+		    // Height "oldHeight" is snapshotted here to be able to determine subtree heights.
+		    // The height of a node outside of this tree, remains constant.
+		    // After a few levels of method calls, the actual depth to insert at, is determined
+		    // from a current height of the tree and the height of the subtree to be reinserted.
 		    rStarReinsertNodeChildrenAtDepth (node, childHeight);
 		}
 	    }
-	    // TODO: bug: this may modify the tree and invalidate the path
-	    //
 	}
     }
 
-    // R*-tree reinsert algorithm
-    // node should be in insertionPath, so passing node is unnecessary
-    // TODO: move up inserter and make generic
     private int reinsertCalls = 0;
 
     private void propagateMBRChanges (List<Node<T>> path) {
