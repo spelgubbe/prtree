@@ -227,7 +227,7 @@ class PseudoPRTreeBuilder<T, N> {
 		// if that is equal or greater than the size of this problem,
 		// those elements are consumed and there will be no further problems to solve.
 		// So if this condition is not true, we return an empty problem (null, null)
-		if (size < maxRemovedElements) {
+		if (size > maxRemovedElements) {
 		    // there is a rest after constructing the 2d priority leaves
 		    int rest = size - maxRemovedElements;
 		    // assume elements are removed from the list
