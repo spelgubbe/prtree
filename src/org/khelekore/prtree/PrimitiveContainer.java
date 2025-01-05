@@ -107,6 +107,7 @@ class PrimitiveContainer<T> {
 	return O.subList (begin, end);
     }
 
+    // used for debug?
     public double[] dataView () {
 	double[] tmp = new double[size () * B];
 	int indexBase = translateIndex (0) * B;
@@ -114,6 +115,7 @@ class PrimitiveContainer<T> {
 	return tmp;
     }
 
+    // used for debug
     public double[] dataView (final int axis) {
 	//System.out.println("Calling dataview with begin " + begin + " end " + end + " axis " + axis);
 	double[] tmp = new double[size ()];

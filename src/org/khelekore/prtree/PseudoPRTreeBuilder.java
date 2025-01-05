@@ -201,6 +201,10 @@ class PseudoPRTreeBuilder<T, N> {
 	}
     }
 
+    // this class holds problem spawning implementations and structure to support problems
+    // using different containers.
+    // I is the input container type
+    // X is the element type where each solved problem produces a List<List<X>>
     private abstract class Problem<I, X> {
 	public I input;
 	public int depth;
@@ -253,7 +257,6 @@ class PseudoPRTreeBuilder<T, N> {
 	    return new Pair<> (null, null);
 	}
 
-	// this is probably not supposed to be here
 	public void enqueueChildren (ArrayDeque<Problem<I, X>> q) {
 	    Pair<Problem<I, X>> next = spawnChildren ();
 	    if (next.a () != null)
@@ -263,7 +266,7 @@ class PseudoPRTreeBuilder<T, N> {
 	}
     }
 
-    public <I, X> List<List<Problem<I, X>>> bfsLevelList (Problem<I, X> input) {
+    private <I, X> List<List<Problem<I, X>>> bfsLevelList (Problem<I, X> input) {
 	int n = input.size (input.input);
 	if (n == 0) {
 	    return new ArrayList<> ();
@@ -332,12 +335,24 @@ class PseudoPRTreeBuilder<T, N> {
     private void kthSmallestOrLargest (PrimitiveContainer<T> A, int k, final int axis) {
 
 	if (axis % 2 == 0) {
-	    // find most extreme minimums
-	    kthElement.putKSmallestLast (A, k, axis);
-	    //assertLastElementsAreMinimal(A, k, axis);
+	    // some kind of tactic where when k is small, we use that to speed things up
+	    if (k < 50) {
+		kthElement.putKSmallestLastPQ (A, k, axis);
+	    } else {
+		// find most extreme minimums
+		kthElement.putKSmallestLast (A, k, axis);
+		//assertLastElementsAreMinimal(A, k, axis);
+	    }
+
+
 	} else {
-	    kthElement.putKLargestLast (A, k, axis);
-	    //assertLastElementsAreMaximal(A, k, axis);
+	    if (k < 50) {
+		kthElement.putKLargestLastPQ (A, k, axis);
+	    } else {
+		kthElement.putKLargestLast (A, k, axis);
+		//assertLastElementsAreMaximal(A, k, axis);
+	    }
+
 	}
     }
 
@@ -401,7 +416,6 @@ class PseudoPRTreeBuilder<T, N> {
 	PrimitiveContainer<T> container = new PrimitiveContainer<> (in, mbrData, 2 * dims);
 	//System.out.println("PrimitiveContainer of size " + container.size() + " built for the " + in.size() + " nodes.");
 
-	// shuffle before or after collecting data?
 	pprBuild (new ContainerProblem (container, 0), output);
 	extractListsIntoNodes (output, nf, leafNodes);
     }
@@ -432,6 +446,120 @@ class PseudoPRTreeBuilder<T, N> {
     }
 
     private class KthElement {
+
+	// new part where a min/max-heap is used to find extreme values
+	// and this is only suitable for small values of k, so not where k = n/2
+
+	// min-heap solution for put K largest values last
+	public void putKLargestLastPQ (PrimitiveContainer<T> A, int k, int axis) {
+	    if (k == 0) {
+		return;
+	    }
+	    if (A.size () <= k)
+		return;
+	    DoubleAndIndex[] da = getKLargest (A, k, axis);
+	    swapIntoEnd (A, da);
+	}
+
+	public void putKSmallestLastPQ (PrimitiveContainer<T> A, int k, int axis) {
+	    if (k == 0) {
+		return;
+	    }
+	    if (A.size () <= k)
+		return;
+	    DoubleAndIndex[] da = getKSmallest (A, k, axis);
+	    swapIntoEnd (A, da);
+	}
+
+
+	private void swapIntoEnd (PrimitiveContainer<T> A, DoubleAndIndex[] da) {
+	    if (da.length == 0) {
+		return;
+	    }
+	    int startSwapIndex = A.size () - da.length; // should be size - k
+	    int i = 0;
+	    // Holy buckets. This sorts so that high indices are first in the array
+	    // This is a lot of
+	    int[] indexArr = new int[da.length];
+	    for (int i1 = 0; i1 < indexArr.length; i1++) {
+		indexArr[i1] = da[i1].index;
+	    }
+	    gptISort (indexArr);
+	    for (int toIndex = A.size () - 1; toIndex >= startSwapIndex; toIndex--) {
+		int fromIndex = da[i].index;
+		// This can never place any of the k extreme elements at a lower index than its previous index
+		// This means no elements that belong in the top k get swapped away accidentally
+		A.swap (fromIndex, toIndex);
+		i++;
+	    }
+	}
+
+	// ai generated
+	private static void gptISort (int[] array) {
+	    for (int i = 1; i < array.length; i++) {
+		int key = array[i];
+		int j = i - 1;
+
+		while (j >= 0 && array[j] > key) {
+		    array[j + 1] = array[j];
+		    j--;
+		}
+		array[j + 1] = key;
+	    }
+	}
+
+
+
+	private DoubleAndIndex[] getKLargest (PrimitiveContainer<T> A, int k, int axis) {
+	    k = Math.min (k, A.size ());
+	    PriorityQueue<DoubleAndIndex> minHeap = new PriorityQueue<> (
+		    Comparator.comparingDouble (DoubleAndIndex::value));
+
+	    for(int i = 0; i < k; i++) {
+		double x = A.getD (i, axis);
+		minHeap.add (new DoubleAndIndex (x, i));
+	    }
+	    for (int i = k; i < A.size (); i++) {
+		double x = A.getD (i, axis);
+		// top has smallest element in heap
+		if (x > minHeap.peek ().value) {
+		    minHeap.add (new DoubleAndIndex (x, i));
+		    minHeap.poll ();
+		}
+	    }
+	    return minHeap.toArray(new DoubleAndIndex[0]);
+	}
+
+	private DoubleAndIndex[] getKSmallest (PrimitiveContainer<T> A, int k, int axis) {
+	    k = Math.min (k, A.size ());
+	    PriorityQueue<DoubleAndIndex> maxHeap = new PriorityQueue<> (
+		    Comparator.comparingDouble (DoubleAndIndex::value).reversed ());
+	    if (k == 0) {
+		System.out.println ("ALERT " + k + " " + A.size ()); // this can happen
+	    }
+	    for(int i = 0; i < k; i++) {
+		double x = A.getD (i, axis);
+		maxHeap.add (new DoubleAndIndex (x, i));
+	    }
+	    for (int i = k; i < A.size (); i++) {
+		double x = A.getD (i, axis);
+		// top has largest element in heap
+		if (x < maxHeap.peek ().value) {
+		    maxHeap.add (new DoubleAndIndex (x, i));
+		    maxHeap.poll ();
+		}
+	    }
+	    return maxHeap.toArray(new DoubleAndIndex[0]);
+	}
+
+	private record DoubleAndIndex (double value, int index) {
+	    // empty
+	}
+
+	// min-heap solution for put k smallest values last
+
+	// end new part
+
 	public void putKLargestLast (List<T> A, int k, Comparator<T> comp) {
 	    if (A.size () <= k)
 		return;
@@ -463,7 +591,7 @@ class PseudoPRTreeBuilder<T, N> {
 		return A.get (left);
 
 	    int pIndex = new Random ().nextInt (right - left + 1) + left;
-	    pIndex = partition (A, left, right, pIndex, comp);
+	    pIndex = partitionHoare (A, left, right, pIndex, comp);
 
 	    if (pIndex == k - 1)
 		return A.get (pIndex);
@@ -510,21 +638,7 @@ class PseudoPRTreeBuilder<T, N> {
 	    return quickSelectReverse (A, left, newRight, k, axis);
 	}
 
-	private int partition (List<T> A, int left, int right, int pIndex, Comparator<T> comp) {
-	    T pivot = A.get (pIndex);
-	    swap (A, pIndex, right);
-	    pIndex = left;
-
-	    for (int i = left; i <= right; i++) {
-		T test = A.get (i);
-		if (comp.compare (test, pivot) <= 0) {
-		    swap (A, i, pIndex++);
-		}
-	    }
-
-	    return pIndex - 1;
-	}
-
+	// TODO: i have no clue why the reverse variant isn't used, probably the comparator handles it?
 	private int partitionHoare (List<T> A, int start, int end, int pIndex, Comparator<T> comp) {
 	    T pivot = A.get (pIndex);
 	    int lowIndex = start - 1;
